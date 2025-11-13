@@ -9,7 +9,7 @@
 Lorem Ipsum
 
 ~~~sh
-output="$(aspect mytask)"
+output="$(aspect affected)"
 
 # Verify that it produces the expected output
 echo "${output}" | grep -q "SUCCESS" || {

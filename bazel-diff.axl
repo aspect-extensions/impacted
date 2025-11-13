@@ -6,14 +6,14 @@ https://github.com/Tinder/bazel-diff/blob/master/bazel-diff-example.sh
 def exec(command):
     return command.stdout("piped").spawn().wait_with_output().stdout.strip()
 
-
-def impl(ctx: task_context):
+# buildifier: disable=function-docstring
+def impl(ctx: TaskContext):
     out = ctx.std.io.stdout
     out.write("Building bazel-diff executable...\n")
-    build = ctx.build(
+    build = ctx.bazel.build(
         ctx.args.bazel_diff_cli or "//tools:bazel-diff",
-        events = True,
-        bazel_flags = ["--build_runfile_links"],
+        build_events = True,
+        flags = ["--build_runfile_links"],
     )
     (bazel_diff_command, runfiles) = (None, None)
     for event in build.events():
