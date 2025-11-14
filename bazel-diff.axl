@@ -7,7 +7,7 @@ def exec(command):
     return command.stdout("piped").spawn().wait_with_output().stdout.strip()
 
 # buildifier: disable=function-docstring
-def checkout_merge_base(std: Std):
+def checkout_merge_base(std: std.Std):
     out = std.io.stdout
     out.write("Checking out merge base...\n")
     current_revision = exec(std.process.command("git").args(["rev-parse", "HEAD"]))
@@ -70,7 +70,7 @@ def impl(ctx: TaskContext):
     out.write("Restoring current revision...\n")
     restore = ctx.std.process.command("git").args(["checkout", current_revision, "--quiet"]).spawn()
     if not restore.wait().success:
-        ctx.std.io.stderr.write("Error checking out original commit: %s" % checkout.stderr)
+        ctx.std.io.stderr.write("Error checking out original commit: %s" % restore.stderr)
         return 1
 
     generate_hashes = bazel_diff([
