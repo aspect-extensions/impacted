@@ -19,10 +19,10 @@ def impl(ctx: TaskContext):
     for event in build.build_events():
         if event.kind == "named_set_of_files":
             for file in event.payload.files:
-                if len(file.path_prefix) == 0 or file.file.uri.endswith(".jar"):
+                if len(file.path_prefix) == 0 or file.file.endswith(".jar"):
                     continue
-                runfiles = file.file.uri.removeprefix("file://") + ".runfiles"
-                bazel_diff_command = file.file.uri.removeprefix("file://")
+                runfiles = file.file.removeprefix("file://") + ".runfiles"
+                bazel_diff_command = file.file.removeprefix("file://")
     if not bazel_diff_command:
         ctx.std.io.stderr.write("Error finding bazel-diff executable")
         return 1
