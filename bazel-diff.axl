@@ -3,12 +3,10 @@
 Based on
 https://github.com/Tinder/bazel-diff/blob/master/bazel-diff-example.sh
 """
-load("./runnable.axl", "runnable")
-
 def exec(command):
     return command.stdout("piped").spawn().wait_with_output().stdout.strip()
 
-
+# buildifier: disable=function-docstring
 def impl(ctx: TaskContext):
     out = ctx.std.io.stdout
     out.write("Building bazel-diff executable...\n")
@@ -17,11 +15,27 @@ def impl(ctx: TaskContext):
         build_events = True,
         flags = ["--build_runfile_links"],
     )
-    bazel_diff_runnable = runnable(ctx)
+    (bazel_diff_command, runfiles) = (None, None)
     for event in build.build_events():
-        bazel_diff_runnable.event(event)
+        if event.kind == "named_set_of_files":
+            for file in event.payload.files:
+                if len(file.path_prefix) == 0 or file.file.uri.endswith(".jar"):
+                    continue
+                runfiles = file.file.uri.removeprefix("file://") + ".runfiles"
+                bazel_diff_command = file.file.uri.removeprefix("file://")
+    if not bazel_diff_command:
+        ctx.std.io.stderr.write("Error finding bazel-diff executable")
+        return 1
 
-    bazel_diff = lambda args: bazel_diff_runnable.args(args).spawn().wait()
+    bazel_diff = lambda args: ctx.std.process.command(bazel_diff_command) \
+        .current_dir(runfiles) \
+        .env("RUNFILES_DIR", runfiles) \
+        .env("RUNFILES_MANIFEST_FILE", runfiles + "_manifest") \
+        .env("BUILD_WORKSPACE_DIRECTORY", ctx.std.env.current_dir()) \
+        .env("BUILD_WORKING_DIRECTORY", ctx.std.env.current_dir()) \
+        .args(args) \
+        .spawn() \
+        .wait()
 
     out.write("Checking out merge base...\n")
     current_revision = exec(ctx.std.process.command("git").args(["rev-parse", "HEAD"]))
@@ -30,8 +44,9 @@ def impl(ctx: TaskContext):
     if not checkout.success:
         ctx.std.io.err.write("Error checking out merge base: %s" % checkout.stderr)
         return 1
+    else:
+        out.write("Generating Hashes for Base Revision %s\n" % merge_base)
 
-    out.write("Generating Hashes for Base Revision %s\n" % merge_base)
     starting_hashes_json=ctx.std.env.temp_dir() + "/starting_hashes.json"
     final_hashes_json=ctx.std.env.temp_dir() + "/final_hashes.json"
     impacted_targets_path=ctx.std.env.temp_dir() + "/impacted_targets.txt"
