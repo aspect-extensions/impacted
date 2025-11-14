@@ -1,41 +1,27 @@
-"""Calculate affected targets from the BASE commit
+"""Calculate impacted targets from the BASE commit
 
 Based on
 https://github.com/Tinder/bazel-diff/blob/master/bazel-diff-example.sh
 """
+load("./runnable.axl", "runnable")
+
 def exec(command):
     return command.stdout("piped").spawn().wait_with_output().stdout.strip()
 
 
-def impl(ctx: task_context):
+def impl(ctx: TaskContext):
     out = ctx.std.io.stdout
     out.write("Building bazel-diff executable...\n")
-    build = ctx.build(
-        ctx.args.bazel_diff_cli or "//tools:bazel-diff",
-        events = True,
-        bazel_flags = ["--build_runfile_links"],
+    build = ctx.bazel.build(
+        ctx.args.bazel_diff_cli,
+        build_events = True,
+        flags = ["--build_runfile_links"],
     )
-    (bazel_diff_command, runfiles) = (None, None)
-    for event in build.events():
-        if event.type == "named_set_of_files":
-            for file in event.payload.files:
-                if len(file.path_prefix) == 0 or file.file.uri.endswith(".jar"):
-                    continue
-                runfiles = file.file.uri.removeprefix("file://") + ".runfiles"
-                bazel_diff_command = file.file.uri.removeprefix("file://")
-    if not bazel_diff_command:
-        ctx.std.io.stderr.write("Error finding bazel-diff executable")
-        return 1
+    bazel_diff_runnable = runnable(ctx)
+    for event in build.build_events():
+        bazel_diff_runnable.event(event)
 
-    bazel_diff = lambda args: ctx.std.process.command(bazel_diff_command) \
-        .current_dir(runfiles) \
-        .env("RUNFILES_DIR", runfiles) \
-        .env("RUNFILES_MANIFEST_FILE", runfiles + "_manifest") \
-        .env("BUILD_WORKSPACE_DIRECTORY", ctx.std.env.current_dir()) \
-        .env("BUILD_WORKING_DIRECTORY", ctx.std.env.current_dir()) \
-        .args(args) \
-        .spawn() \
-        .wait()
+    bazel_diff = lambda args: bazel_diff_runnable.args(args).spawn().wait()
 
     out.write("Checking out merge base...\n")
     current_revision = exec(ctx.std.process.command("git").args(["rev-parse", "HEAD"]))
@@ -88,9 +74,9 @@ def impl(ctx: task_context):
     ctx.std.io.stdout.write("Impacted Targets for Revision %s: %s" % (current_revision, ctx.std.fs.read_to_string(impacted_targets_path)))
     return 0
 
-affected = task(
+impacted = task(
     implementation = impl,
     args = {
-        "bazel_diff_cli": args.string(),
+        "bazel_diff_cli": args.string(default = "//tools:bazel-diff"),
     }
 )

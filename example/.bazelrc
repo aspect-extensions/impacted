@@ -1,0 +1,4 @@
+# Repository rules, such as rules_jvm_external: put Bazel's JDK on the path.
+# Avoids non-hermeticity from dependency on a JAVA_HOME pointing at a system JDK
+# see https://github.com/bazelbuild/rules_jvm_external/issues/445
+common --repo_env="JAVA_HOME=../bazel_tools/jdk"

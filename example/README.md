@@ -1,4 +1,4 @@
-# [new task] example
+# bazel-diff example
 
     # This is executable Markdown that's tested on CI.
     set -o errexit -o nounset -o xtrace
@@ -6,10 +6,8 @@
 
 ## Try it out
 
-Lorem Ipsum
-
 ~~~sh
-output="$(aspect mytask)"
+output="$(aspect impacted)"
 
 # Verify that it produces the expected output
 echo "${output}" | grep -q "SUCCESS" || {

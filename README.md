@@ -1,6 +1,6 @@
-# `aspect affected`
+# `aspect impacted`
 
-This task lets you run only the tests which are "affected" by changes to the sources.
+This task lets you run only the tests which are "impacted" by changes to the sources.
 
 It uses the popular Tinder/bazel-diff utility.
 As they document on https://github.com/Tinder/bazel-diff#getting-started:
