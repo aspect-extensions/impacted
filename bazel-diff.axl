@@ -1,4 +1,4 @@
-"""Calculate affected targets from the BASE commit
+"""Calculate impacted targets from the BASE commit
 
 Based on
 https://github.com/Tinder/bazel-diff/blob/master/bazel-diff-example.sh
@@ -6,23 +6,34 @@ https://github.com/Tinder/bazel-diff/blob/master/bazel-diff-example.sh
 def exec(command):
     return command.stdout("piped").spawn().wait_with_output().stdout.strip()
 
+# buildifier: disable=function-docstring
+def checkout_merge_base(std: std.Std):
+    out = std.io.stdout
+    out.write("Checking out merge base...\n")
+    current_revision = exec(std.process.command("git").args(["rev-parse", "HEAD"]))
+    merge_base = exec(std.process.command("git").args(["merge-base", "HEAD", "origin/main"]))
+    checkout = std.process.command("git").args(["checkout", merge_base, "--quiet"]).spawn()
+    if checkout.wait().success:
+        return merge_base, current_revision, None
+    else:
+        return None, None, checkout.stderr
 
-def impl(ctx: task_context):
-    out = ctx.std.io.stdout
-    out.write("Building bazel-diff executable...\n")
-    build = ctx.build(
-        ctx.args.bazel_diff_cli or "//tools:bazel-diff",
-        events = True,
-        bazel_flags = ["--build_runfile_links"],
+# buildifier: disable=function-docstring
+def impl(ctx: TaskContext):
+    ctx.std.io.stdout.write("Building %s executable...\n" % ctx.args.bazel_diff_cli)
+    build = ctx.bazel.build(
+        ctx.args.bazel_diff_cli,
+        build_events = True,
+        flags = ["--build_runfile_links"],
     )
     (bazel_diff_command, runfiles) = (None, None)
-    for event in build.events():
-        if event.type == "named_set_of_files":
+    for event in build.build_events():
+        if event.kind == "named_set_of_files":
             for file in event.payload.files:
-                if len(file.path_prefix) == 0 or file.file.uri.endswith(".jar"):
+                if len(file.path_prefix) == 0 or file.file.endswith(".jar"):
                     continue
-                runfiles = file.file.uri.removeprefix("file://") + ".runfiles"
-                bazel_diff_command = file.file.uri.removeprefix("file://")
+                runfiles = file.file.removeprefix("file://") + ".runfiles"
+                bazel_diff_command = file.file.removeprefix("file://")
     if not bazel_diff_command:
         ctx.std.io.stderr.write("Error finding bazel-diff executable")
         return 1
@@ -37,18 +48,16 @@ def impl(ctx: task_context):
         .spawn() \
         .wait()
 
-    out.write("Checking out merge base...\n")
-    current_revision = exec(ctx.std.process.command("git").args(["rev-parse", "HEAD"]))
-    merge_base = exec(ctx.std.process.command("git").args(["merge-base", "HEAD", "origin/main"]))
-    checkout = ctx.std.process.command("git").args(["checkout", merge_base, "--quiet"]).spawn().wait()
-    if not checkout.success:
-        ctx.std.io.err.write("Error checking out merge base: %s" % checkout.stderr)
+    (merge_base, current_revision, error) = checkout_merge_base(ctx.std)
+    if error:
+        ctx.std.io.stderr.write("Error checking out merge base: %s" % error)
         return 1
 
-    out.write("Generating Hashes for Base Revision %s\n" % merge_base)
     starting_hashes_json=ctx.std.env.temp_dir() + "/starting_hashes.json"
     final_hashes_json=ctx.std.env.temp_dir() + "/final_hashes.json"
     impacted_targets_path=ctx.std.env.temp_dir() + "/impacted_targets.txt"
+
+    ctx.std.io.stdout.write("Generating Hashes for Base Revision %s...\n" % merge_base)
     generate_hashes = bazel_diff([
         "generate-hashes",
         "-w", ctx.std.env.current_dir(),
@@ -59,10 +68,10 @@ def impl(ctx: task_context):
         ctx.std.io.stderr.write("Error generating hashes: %s" % generate_hashes.code)
         return 1
     
-    out.write("Restoring current revision...\n")
-    restore = ctx.std.process.command("git").args(["checkout", current_revision, "--quiet"]).spawn().wait()
-    if not restore.success:
-        ctx.std.io.err.write("Error checking out original commit: %s" % checkout.stderr)
+    ctx.std.io.stdout.write("Restoring current revision...\n")
+    restore = ctx.std.process.command("git").args(["checkout", current_revision, "--quiet"]).spawn()
+    if not restore.wait().success:
+        ctx.std.io.stderr.write("Error checking out original commit: %s" % restore.stderr)
         return 1
 
     generate_hashes = bazel_diff([
@@ -86,11 +95,12 @@ def impl(ctx: task_context):
         return 1
     
     ctx.std.io.stdout.write("Impacted Targets for Revision %s: %s" % (current_revision, ctx.std.fs.read_to_string(impacted_targets_path)))
+    # TODO: offer to test the impacted targets by running `bazel test` on them
     return 0
 
-affected = task(
+impacted = task(
     implementation = impl,
     args = {
-        "bazel_diff_cli": args.string(),
+        "bazel_diff_cli": args.string(default = "//tools:bazel-diff"),
     }
 )
