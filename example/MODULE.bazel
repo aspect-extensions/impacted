@@ -1,4 +1,4 @@
-bazel_dep(name = "rules_java", version = "8.16.1")
+bazel_dep(name = "rules_java", version = "9.0.3")
 
 http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
 http_jar(
