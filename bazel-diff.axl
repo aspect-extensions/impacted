@@ -61,7 +61,6 @@ def impl(ctx: TaskContext):
     generate_hashes = bazel_diff([
         "generate-hashes",
         "-w", ctx.std.env.current_dir(),
-        "-b", "/Users/alexeagle/Downloads/bazel-8.4.1-darwin-arm64",
         starting_hashes_json
     ])
     if not generate_hashes.success:
@@ -77,7 +76,6 @@ def impl(ctx: TaskContext):
     generate_hashes = bazel_diff([
         "generate-hashes", 
         "-w", ctx.std.env.current_dir(),
-        "-b", "/Users/alexeagle/Downloads/bazel-8.4.1-darwin-arm64", final_hashes_json
     ])
     if not generate_hashes.success:
         ctx.std.io.stderr.write("Error generating hashes: %s" % generate_hashes.code)
