@@ -76,6 +76,7 @@ def impl(ctx: TaskContext):
     generate_hashes = bazel_diff([
         "generate-hashes", 
         "-w", ctx.std.env.current_dir(),
+        final_hashes_json
     ])
     if not generate_hashes.success:
         ctx.std.io.stderr.write("Error generating hashes: %s" % generate_hashes.code)
