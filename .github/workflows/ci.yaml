@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with: 
+          fetch-depth: 0
       - uses: bazel-contrib/setup-bazel@0.15.0
       - name: Install Aspect CLI
         run: |
