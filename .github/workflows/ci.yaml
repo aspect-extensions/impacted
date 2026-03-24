@@ -11,6 +11,7 @@ on:
       - synchronize
   schedule:
     - cron: '0 6 * * *'
+
 jobs:
   org-checks:
     uses: aspect-extensions/.github/.github/workflows/org-check.yaml@main
