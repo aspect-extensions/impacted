@@ -9,6 +9,8 @@ on:
       - opened
       - edited
       - synchronize
+  schedule:
+    - cron: '0 6 * * *'
 jobs:
   org-checks:
     uses: aspect-extensions/.github/.github/workflows/org-check.yaml@main
@@ -24,10 +26,10 @@ jobs:
           - '' # latest prerelease
           - v2025.46.20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: bazel-contrib/setup-bazel@0.15.0
+      - uses: bazel-contrib/setup-bazel@0.18.0
       - uses: aspect-extensions/.github/.github/actions/setup-aspect-cli@main
         with:
           version: ${{ matrix.aspect-version }}
